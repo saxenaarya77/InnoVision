@@ -1,165 +1,505 @@
-# AI-Driven Software-Defined Video Analytics Platform for Border Out Posts (BOPs)
+# InnoVision
 
-A high-throughput tactical perimeter surveillance platform that transforms legacy IP-based CCTV cameras into an intelligent threat detection network without requiring proprietary smart-camera edge hardware.
+## AI-Driven Software-Defined Video Analytics Platform for Border Out Posts (BOPs)
 
----
+InnoVision is an AI-driven tactical video analytics platform designed to transform conventional IP-based CCTV cameras into an intelligent surveillance and threat-detection network.
 
-## Key System Capabilities
+The platform combines computer vision, real-time video analytics, object tracking, facial recognition, automatic number plate recognition, behavioral anomaly detection, virtual perimeter monitoring, and a centralized command dashboard.
 
-- **Adaptive Zero-DCE Illumination Engine**: Measures scene luminance in microsecond real-time. If average luminance drops below threshold (< 60/255), frames are dynamically routed through a lightweight **Zero-Reference Deep Curve Estimation (Zero-DCE)** neural network (< 150MB VRAM footprint) to restore contrast and detail during pitch-dark night surveillance.
-- **YOLOv10 & ByteTrack Perception**: Continuous spatial-temporal tracking preserving persistent tracklet IDs across camera field-of-view, maintaining velocity and track history even under heavy occlusion.
-- **Shapely Polygon Collision & Loitering Engine**: Evaluates tracklet ground-contact coordinates against vector polygons defined for international boundaries, armory perimeters, and checkpost barriers. Calculates dwell durations and triggers directional intrusion and loitering violations.
-- **Asynchronous Specialist Workers (Redis Message Broker)**: Heavy secondary analytical tasks are completely decoupled from the 25–30 FPS RTSP ingestion pipeline to guarantee **zero frame dropping**:
-  - **ANPR Worker (`workers/anpr_worker.py`)**: Consumes vehicle crops from `queue:plates`, isolates plate ROIs via top-hat morphology, extracts characters via PaddleOCR, and cross-references against stolen and authorized defense vehicle registries.
-  - **FRS Worker (`workers/frs_worker.py`)**: Consumes person crops from `queue:faces`, detects faces, extracts 512-D ArcFace deep embeddings, and computes cosine distance against security watchlists.
-  - **Behavioral Anomaly Worker (`workers/anomaly_worker.py`)**: Buffers a sliding temporal window of frames sampled at 2–4 FPS, calculates spatio-temporal optical flow energy and motion entropy, and flags rapid rushes, perimeter climbing, or erratic maneuvers.
-- **Strict 4GB VRAM Hardware Guardrails (RTX 3050 Laptop GPU)**:
-  - Dataloader workers set to `4` (optimized for Intel 11th Gen i5 CPU).
-  - Fine-tuning scripts enforce `batch=8` (or `batch=4` under OS memory contention) with FP16 Automatic Mixed Precision (`amp=True`).
-  - Dataset RAM caching (`cache=True`) takes full advantage of the workstation's **24GB System RAM**, completely eliminating disk I/O bottlenecks.
-- **Central Command Center Dashboard**: Modern React + Vite frontend communicating with a Flask-SocketIO backend API. Features low-latency MJPEG video streaming, real-time alert logs with crop snapshots, interactive polygon drawing for virtual fence zones, and live telemetry for GPU VRAM and CPU utilization.
+The system is designed to operate with existing camera infrastructure without requiring proprietary smart-camera hardware.
 
 ---
 
-## Model Performance & Accuracy Benchmarks
+## 🚀 Key Features
 
-| Subsystem / Worker | Model Architecture | Accuracy | ROC-AUC | Precision | Recall | F1-Score |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **StreamEngine Perception** | Ultralytics YOLOv8n + ByteTrack | **86.2%** | **0.9520** | **87.5%** | **93.1%** | **0.9021** |
-| **ANPR Specialist Worker** | YOLO-Plate + OCR Fuzzy Matcher | **95.8%** | **0.9840** | **96.2%** | **95.4%** | **0.9580** |
-| **FRS Specialist Worker** | ArcFace ResNet-50 (512-D Space) | **96.4%** | **0.9910** | **95.1%** | **96.8%** | **0.9594** |
-| **Behavioral Anomaly Worker** | Farneback Flow + Persistence Mask | **93.8%** | **0.9420** | **94.5%** | **92.3%** | **0.9339** |
-| **Virtual Fence Engine** | Shapely 2.0 + Hysteresis Buffer | **95.2%** | **0.9860** | **94.8%** | **97.2%** | **0.9599** |
-| **Zero-DCE Low-Light Enhancer** | DCENet (Deep Curve Estimation) | **98.2%** | **0.9950** | **97.8%** | **99.1%** | **0.9845** |
+### 1. Adaptive Low-Light Enhancement
+
+InnoVision includes an adaptive low-light enhancement pipeline based on Zero-Reference Deep Curve Estimation (Zero-DCE).
+
+The system evaluates scene brightness and can dynamically activate enhancement when the incoming video becomes too dark, improving visibility in low-light surveillance conditions.
+
+### 2. Real-Time Object Detection & Tracking
+
+The platform uses YOLO-based object detection together with ByteTrack for persistent object tracking.
+
+This enables the system to maintain track IDs and track movement across the camera field of view.
+
+### 3. Virtual Fence & Intrusion Detection
+
+The platform supports configurable virtual security zones using polygon-based boundaries.
+
+These zones can represent:
+
+* Restricted perimeters
+* Checkpost control areas
+* Loitering zones
+* International or sensitive boundaries
+
+The system can detect boundary crossings and prolonged presence within defined areas.
+
+### 4. Automatic Number Plate Recognition
+
+The ANPR worker processes vehicle detections and performs:
+
+* License plate localization
+* Region-of-interest extraction
+* Optical character recognition
+* Plate matching
+* Authorized/stolen vehicle registry comparison
+
+### 5. Facial Recognition System
+
+The FRS worker processes detected faces and generates facial embeddings for comparison against configured security watchlists.
+
+The system uses ArcFace-based facial embeddings for identity matching.
+
+### 6. Behavioral Anomaly Detection
+
+InnoVision analyzes temporal movement patterns to identify unusual behavior.
+
+The anomaly detection pipeline can be used to identify events such as:
+
+* Rapid movement
+* Perimeter climbing
+* Unusual movement patterns
+* Erratic activity
+
+### 7. Asynchronous Processing Architecture
+
+Heavy analytical tasks are separated from the primary video-ingestion pipeline using asynchronous workers and Redis messaging.
+
+The architecture includes specialist workers for:
+
+* ANPR
+* Facial Recognition
+* Behavioral Anomaly Detection
+
+This separation helps maintain continuous video processing while secondary analytics run independently.
+
+### 8. Central Command Dashboard
+
+The project includes a React + Vite dashboard connected to a Flask-SocketIO backend.
+
+The dashboard provides:
+
+* Live video monitoring
+* Real-time security alerts
+* Alert snapshots
+* Virtual fence configuration
+* System telemetry
+* GPU utilization information
+* CPU utilization information
+* Tracking information
+* Night-vision enhancement status
 
 ---
 
-## Directory Structure
+## 🧠 System Architecture
+
+```text
+                    ┌───────────────────────┐
+                    │   IP Camera / RTSP    │
+                    │   USB Camera / Feed   │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │    Stream Engine      │
+                    │  Video Ingestion      │
+                    │  Low-Light Detection  │
+                    │  Object Detection     │
+                    │  Object Tracking     │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │    Redis Message      │
+                    │       Broker          │
+                    └───────────┬───────────┘
+                                │
+             ┌──────────────────┼──────────────────┐
+             │                  │                  │
+             ▼                  ▼                  ▼
+      ┌────────────┐     ┌────────────┐     ┌────────────┐
+      │    ANPR    │     │    FRS     │     │  Anomaly   │
+      │   Worker   │     │   Worker   │     │   Worker   │
+      └─────┬──────┘     └─────┬──────┘     └─────┬──────┘
+            │                  │                  │
+            └──────────────────┼──────────────────┘
+                               ▼
+                    ┌───────────────────────┐
+                    │    Alert Manager     │
+                    │  Alert Deduplication │
+                    │  Rate Limiting        │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │  Flask-SocketIO API  │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │   React + Vite UI    │
+                    │  Command Dashboard   │
+                    └───────────────────────┘
+```
+
+---
+
+## 📊 Project Components
+
+| Component            | Purpose                                    |
+| -------------------- | ------------------------------------------ |
+| Stream Engine        | Video ingestion and real-time perception   |
+| YOLO + ByteTrack     | Object detection and tracking              |
+| Zero-DCE             | Low-light image enhancement                |
+| Virtual Fence Engine | Perimeter and intrusion monitoring         |
+| ANPR Worker          | License plate recognition                  |
+| FRS Worker           | Facial recognition and watchlist matching  |
+| Anomaly Worker       | Behavioral anomaly detection               |
+| Redis                | Asynchronous message processing            |
+| Flask-SocketIO       | Backend API and real-time communication    |
+| React + Vite         | Command center dashboard                   |
+| Shapely              | Polygon-based zone and boundary processing |
+
+---
+
+## 📁 Directory Structure
 
 ```text
 InnoVision/
+│
 ├── config/
-│   ├── settings.py           # Unified hardware profiles, thresholds, and stream URLs
-│   └── watchlist.json        # Security suspect watchlist and authorized whitelist
+│   ├── settings.py
+│   └── watchlist.json
+│
 ├── core/
-│   ├── stream_engine.py      # Threaded RTSP ingestion, Zero-DCE trigger, YOLOv10 tracking, Redis queue dispatcher
-│   ├── virtual_fence.py      # Shapely polygon collision, vector crossing, and loitering tracker
-│   └── alert_manager.py      # Rate limiting, alert deduplication, and WebSocket broadcasting
+│   ├── stream_engine.py
+│   ├── virtual_fence.py
+│   └── alert_manager.py
+│
 ├── models/
-│   ├── zero_dce.py           # Zero-Reference Deep Curve Estimation network + adaptive luminance evaluator
-│   ├── face_engine.py        # SCRFD face detector and ArcFace 512-D embedding matcher
-│   ├── plate_engine.py       # Plate ROI localizer and PaddleOCR reader with defense syntax regex
-│   └── anomaly_detector.py   # Spatio-temporal sliding window motion entropy & anomaly scorer
+│   ├── zero_dce.py
+│   ├── face_engine.py
+│   ├── plate_engine.py
+│   └── anomaly_detector.py
+│
 ├── workers/
-│   ├── base_worker.py        # Resilient message broker with Redis and thread-safe in-memory fallback
-│   ├── anpr_worker.py        # Asynchronous license plate recognition worker
-│   ├── frs_worker.py         # Asynchronous facial recognition & watchlist worker
-│   └── anomaly_worker.py     # Asynchronous behavioral anomaly analyzer worker
+│   ├── base_worker.py
+│   ├── anpr_worker.py
+│   ├── frs_worker.py
+│   └── anomaly_worker.py
+│
 ├── training/
-│   ├── train_plate_detector.py # 4GB VRAM-safe plate detector fine-tuning script
-│   ├── train_yolo.py         # General-purpose BOP threat model fine-tuning script
-│   └── prepare_dataset.py    # YOLO-format dataset builder and synthetic validator
+│   ├── train_plate_detector.py
+│   ├── train_yolo.py
+│   └── prepare_dataset.py
+│
 ├── dashboard/
-│   └── app.py                # Flask-SocketIO backend API and WebSocket server
-├── dashboard-ui/             # React + Vite Frontend
-│   ├── src/                  # React components, styles, and hooks
-│   ├── package.json          # Frontend dependencies and scripts
-│   └── vite.config.js        # Vite config with backend proxy setup
-├── InnoVision_Technical_Report.pdf # Comprehensive project report & technical architecture documentation
-├── run_platform.py           # Unified single-command system orchestrator (Backend)
-├── setup.bat                 # Windows setup & dependency configuration script (Backend)
-└── requirements.txt          # Deep learning & vision platform dependencies
+│   └── app.py
+│
+├── dashboard-ui/
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
+│
+├── data/
+├── logs/
+├── tests/
+│
+├── InnoVision_Technical_Report.pdf
+├── run_platform.py
+├── setup.bat
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Quickstart Guide
+## ⚙️ Requirements
 
-### 1. Automated Setup (Windows Backend)
+The project primarily uses:
 
-Run the automated setup script to configure the Python virtual environment and dependencies for the core backend:
+* Python
+* PyTorch
+* OpenCV
+* Ultralytics YOLO
+* ByteTrack
+* Redis
+* Flask
+* Flask-SocketIO
+* React
+* Vite
+* Shapely
+* PaddleOCR
+* ArcFace
+* CUDA-enabled GPU for accelerated processing
 
-```cmd
+The project also includes configurations designed to work within limited GPU memory environments.
+
+---
+
+# 🛠️ Installation & Setup
+
+## 1. Clone the Repository
+
+```bash
+git clone https://github.com/saxenaarya77/InnoVision.git
+cd InnoVision
+```
+
+---
+
+## 2. Automated Windows Setup
+
+For Windows systems, the project provides an automated setup script.
+
+Run:
+
+```bash
 setup.bat
 ```
 
-### 2. Manual Environment Configuration (Backend)
+---
 
-If configuring manually via PowerShell / Command Prompt:
+## 3. Manual Python Environment Setup
 
-```cmd
-# Create and activate virtual environment
+Create a virtual environment:
+
+```bash
 python -m venv venv
+```
+
+Activate it on Windows:
+
+```bash
 venv\Scripts\activate
+```
 
-# Install PyTorch with CUDA 12.1 support
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+Install the required dependencies:
 
-# Install platform dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Launching the Backend Platform
+For CUDA-enabled systems, install the appropriate PyTorch version according to your CUDA configuration.
 
-To launch the complete core platform (Ingestion Engine + Specialist Workers + Command Backend):
+---
 
-```cmd
-# Run with the built-in synthetic BOP surveillance feed
+# ▶️ Running the Platform
+
+## Synthetic Video Source
+
+For testing without a physical camera:
+
+```bash
 python run_platform.py --source synthetic
+```
 
-# Or ingest a real IP camera RTSP feed
-python run_platform.py --source "rtsp://admin:password@192.168.1.108:554/stream1"
+## RTSP Camera
 
-# Or ingest a local USB webcam
+To use an IP camera:
+
+```bash
+python run_platform.py --source "rtsp://username:password@camera-ip:554/stream"
+```
+
+## USB Webcam
+
+For a local webcam:
+
+```bash
 python run_platform.py --source 0
 ```
 
-The Flask backend and WebSocket server will run on `http://localhost:5000`.
+The backend server runs on:
 
-### 4. Launching the Frontend Dashboard (React UI)
+```text
+http://localhost:5000
+```
 
-The frontend is a modern React application built with Vite. Open a **new** terminal window and run:
+---
 
-```cmd
+# 🖥️ Running the Dashboard
+
+Open another terminal and navigate to the frontend:
+
+```bash
 cd dashboard-ui
+```
+
+Install frontend dependencies:
+
+```bash
 npm install
+```
+
+Start the development server:
+
+```bash
 npm run dev
 ```
 
-Open your browser and navigate to the Vite local dev server (typically `http://localhost:5173`). The frontend is configured to automatically proxy API and WebSocket requests to the backend on port 5000.
+The frontend will normally be available at:
+
+```text
+http://localhost:5173
+```
 
 ---
 
-## Operational Features in Dashboard
+# 🎯 Dashboard Capabilities
 
-1. **Interactive Virtual Fence Configuration**:
-   - Click **"DRAW VIRTUAL FENCE"** on the live feed.
-   - Click anywhere on the video canvas to define zone boundary vertices.
-   - Click **"SAVE ZONE"** and select zone type (`RESTRICTED_PERIMETER`, `CHECKPOST_CONTROL`, or `LOITERING_ZONE`).
-   - The polygon immediately deploys to the core perception engine without restarting the server.
-2. **Tactical Incident Ticker**:
-   - Real-time intrusion, watchlist hits, unauthorized vehicle plates, and behavioral anomalies stream directly via WebSockets with offender crop snapshots.
-   - Built-in synthesized tactical audio warning alerts for high-priority incidents.
-3. **Hardware Telemetry**:
-   - Displays real-time NVIDIA RTX 3050 VRAM utilization (against the 4096 MB limit).
-   - Shows active stream FPS, tracklet count, and Zero-DCE Night Vision activation status.
+The command dashboard provides several operational features.
+
+### Virtual Fence Configuration
+
+Users can draw polygon-based security zones directly on the video feed.
+
+The zones can be configured for:
+
+* Restricted perimeters
+* Checkposts
+* Loitering detection
+
+### Tactical Incident Monitoring
+
+The dashboard can display real-time events including:
+
+* Intrusion alerts
+* Watchlist matches
+* Unauthorized vehicle plates
+* Behavioral anomalies
+
+### Hardware Monitoring
+
+The dashboard can display system telemetry such as:
+
+* GPU VRAM utilization
+* CPU utilization
+* Video FPS
+* Active tracking information
+* Low-light enhancement status
 
 ---
 
-## 4GB VRAM Training & Fine-Tuning Guide
+# 🧪 Model Training
 
-To train or fine-tune models on the RTX 3050 Laptop GPU without CUDA OOM errors:
+The repository includes scripts for dataset preparation and model fine-tuning.
 
-```cmd
-# 1. Generate / verify sample YOLO dataset
+Prepare or verify the dataset:
+
+```bash
 python training/prepare_dataset.py
+```
 
-# 2. Run VRAM-safe plate detector training
+Run plate detector training:
+
+```bash
 python training/train_plate_detector.py
 ```
 
-### Enforced Memory Protections:
-- `batch=8` (dynamically falls back to `batch=4` if Windows background applications consume VRAM).
-- `amp=True` (FP16 Automatic Mixed Precision halves tensor memory footprint).
-- `workers=4` (tuned for Intel 11th Gen i5 quad-core throughput).
-- `cache=True` (loads dataset tensors into the 24GB System RAM, speeding up epoch times by 400%).
+The training configuration is designed to operate within constrained GPU memory environments using techniques such as:
+
+* Mixed precision
+* Reduced batch sizes
+* Controlled dataloader workers
+* Dataset caching
+
+---
+
+# 📈 Performance
+
+The original project documentation contains benchmark measurements for individual subsystems including perception, ANPR, facial recognition, behavioral anomaly detection, virtual fencing, and low-light enhancement.
+
+Performance can vary depending on:
+
+* Dataset
+* Camera quality
+* Lighting conditions
+* Hardware
+* Model configuration
+* Detection thresholds
+
+Therefore, benchmark values should be interpreted in the context of the project's testing environment.
+
+---
+
+# 👨‍💻 My Contribution
+
+### Arya Krishna Saxena
+
+**Team Member — InnoVision / Smart India Hackathon Project**
+
+I contributed to the development of InnoVision as a member of the project team.
+
+My involvement included contributing to the project's development process, collaborating with team members on implementation and refinement, and participating in testing and project-related technical work.
+
+### Areas of Contribution
+
+* Contributed to the development of the InnoVision project.
+* Participated in technical discussions and project planning.
+* Assisted with implementation and project refinement.
+* Contributed to testing and debugging activities.
+* Collaborated with team members during the development process.
+* Worked on understanding and improving the project's technical components.
+
+> **Note:** This repository represents a collaborative team project developed as part of our Smart India Hackathon work. Contributions were made collectively by the team.
+
+---
+
+# 🏆 Smart India Hackathon
+
+InnoVision was developed as a team project for the **Smart India Hackathon (SIH)**.
+
+The project focuses on applying artificial intelligence and computer vision to real-time surveillance and security monitoring.
+
+---
+
+# 📚 Documentation
+
+A detailed technical report is included in the repository:
+
+```text
+InnoVision_Technical_Report.pdf
+```
+
+The report provides additional information about the project's architecture, implementation, and technical design.
+
+---
+
+# 🔐 Responsible Use
+
+InnoVision is intended as a research and educational project for AI-based video analytics and security monitoring.
+
+Features such as facial recognition, watchlists, vehicle identification, and behavioral monitoring involve sensitive data and should be deployed only with appropriate authorization, privacy safeguards, and compliance with applicable laws and organizational policies.
+
+---
+
+# 📌 Project Status
+
+The project is under active development and may continue to evolve as new features, optimizations, and improvements are introduced.
+
+---
+
+## 👥 Team
+
+**InnoVision — Smart India Hackathon Team**
+
+Developed collaboratively by the project team at **VIT Bhopal University**.
+
+---
+
+## ⭐ Acknowledgements
+
+We acknowledge the open-source libraries, frameworks, research, and developer communities that made the development of this project possible.
+
+---
+
+## 📄 License
+
+No separate license has currently been specified for this repository.
+
+If this project is later released as open-source, an appropriate license should be added.
+
